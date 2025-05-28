@@ -21,12 +21,12 @@
 ## 🛠 Estructura del plugin
 
 wp-vulscan/
-├── wp-vulscan.php # Archivo principal del plugin
-├── includes/ # Lógica del plugin (escaneo, análisis, helpers)
-├── assets/ # Estilos, scripts, iconos
-├── templates/ # Vistas HTML/PHP para el panel admin
-├── docs/ # Documentación técnica adicional
-└── tests/ # Scripts y datos para pruebas
+- wp-vulscan.php # Archivo principal del plugin
+- includes/ # Lógica del plugin (escaneo, análisis, helpers)
+- assets/ # Estilos, scripts, iconos
+- templates/ # Vistas HTML/PHP para el panel admin
+- docs/ # Documentación técnica adicional
+- tests/ # Scripts y datos para pruebas
 
 ## 🔍 Requisitos
 
