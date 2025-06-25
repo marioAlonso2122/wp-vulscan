@@ -33,3 +33,27 @@ function wp_vulscan_admin_page() {
     </div>
     <?php
 }
+
+// Mostrar informe 
+wp_vulscan_mostrar_analisis_configuracion(); 
+
+// Introducir URLs con formularios
+wp_vulscan_formulario_urls_usuario();
+
+// Analisis URLs introducidas
+wp_vulscan_analizar_formularios_remotos();
+
+// Comprobar version de la instalacion
+wp_vulscan_check_wp_version();
+
+// Comprobar nombres de usuarios
+wp_vulscan_check_usuarios_predecibles();
+
+// Comprobar permisos archivos
+wp_vulscan_check_permisos_archivos();
+
+// Comprobacion de plugins abandonados
+wp_vulscan_check_plugins_abandonados();
+
+// Recomendaciones de Hardening
+wp_vulscan_mostrar_recomendaciones_hardening();

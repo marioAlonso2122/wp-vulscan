@@ -6,10 +6,17 @@
 
 - Detección de versiones de plugins con vulnerabilidades conocidas (CVE).
 - Evaluación de criticidad según el sistema CVSS.
-- Análisis de archivos expuestos y rutas no protegidas.
-- Revisión de formularios sin mecanismos de seguridad (como CSRF o validación de entrada).
-- Generación de informes claros y priorizados.
-- Integración nativa en el panel de administración de WordPress.
+- Análisis de archivos sensibles expuestos (como `wp-config.php`, `.env`, etc.).
+- Detección de rutas potencialmente peligrosas (`install.php`, `debug.log`, etc.).
+- Análisis de formularios dentro del tema activo y en URLs externas:
+  - Revisión de `method`, `action`, presencia de campos `nonce`.
+  - Advertencia si el formulario no usa HTTPS.
+- Verificación de la versión actual de WordPress y comparación con la última versión estable.
+- Detección de usuarios con nombres predecibles (`admin`, `root`, `editor`...).
+- Verificación de permisos inseguros en archivos críticos (`wp-config.php`, `.htaccess`, etc.).
+- Detección de plugins abandonados (sin actualización en los últimos 2 años).
+- Panel de recomendaciones de hardening (desactivar `xmlrpc`, eliminar `readme.html`, etc.).
+- Generación de informes claros desde el panel de administración de WordPress.
 
 ## Instalación
 
@@ -23,6 +30,14 @@
 wp-vulscan/
 - wp-vulscan.php # Archivo principal del plugin
 - includes/ # Lógica del plugin (escaneo, análisis, helpers)
+    - init.php
+    - scan.php
+    - config-check.php
+    - form-check.php
+    - form-check-remote.php
+    - system-check.php
+    - hardening-recommendations.php
+    - report.php
 - assets/ # Estilos, scripts, iconos
 - templates/ # Vistas HTML/PHP para el panel admin
 - docs/ # Documentación técnica adicional
@@ -34,15 +49,6 @@ wp-vulscan/
 - PHP 7.4 o superior
 - Acceso al backend de WordPress como administrador
 
-## Estado actual
-
-- [x] Estructura inicial del plugin
-- [ ] Carga de componentes desde `includes/`
-- [ ] Módulo de detección de plugins vulnerables
-- [ ] Módulo de análisis de configuración
-- [ ] Generador de informes
-- [ ] Evaluación final
-
 ## Documentación
 
 En desarrollo. La documentación técnica detallada se incluirá en la carpeta `/docs`.
@@ -51,6 +57,19 @@ En desarrollo. La documentación técnica detallada se incluirá en la carpeta `
 
 Este plugin se distribuye bajo la licencia [GPL v2 o superior](https://www.gnu.org/licenses/gpl-2.0.html).
 
+## Funcionalidades Implementadas 25-06
+
+Durante esta jornada se han añadido las siguientes funcionalidades clave:
+
+- Escaneo de configuración: archivos sensibles y rutas expuestas.
+- Detección de formularios inseguros en archivos PHP del tema activo.
+- Detección de formularios inseguros mediante URL introducida por el usuario.
+- Advertencia si los formularios no usan HTTPS.
+- Verificación de versión del core de WordPress.
+- Detección de usuarios con nombres predecibles.
+- Comprobación de permisos de archivos críticos.
+- Detección de plugins abandonados.
+- Recomendaciones de hardening (eliminar archivos, desactivar funcionalidades, etc.).
 ---
 
 © 2025 - Mario Alonso Pulgar  
