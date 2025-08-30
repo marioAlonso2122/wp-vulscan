@@ -31,6 +31,14 @@ function wp_vulscan_admin_page() {
             <li>Generación de informes con recomendaciones</li>
         </ul>
     </div>
+    <hr>
+    <h2>Exportar informe</h2>
+    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+        <input type="hidden" name="action" value="wpvulscan_export_html">
+        <button type="submit" class="button button-primary">
+            Descargar informe HTML
+        </button>
+    </form>
     <?php
 }
 
@@ -57,3 +65,4 @@ wp_vulscan_check_plugins_abandonados();
 
 // Recomendaciones de Hardening
 wp_vulscan_mostrar_recomendaciones_hardening();
+

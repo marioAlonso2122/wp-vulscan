@@ -27,3 +27,23 @@ register_deactivation_hook(WP_VULSCAN_PATH . 'wp-vulscan.php', 'wp_vulscan_deact
 function wp_vulscan_deactivate() {
     error_log('WP-VulScan desactivado correctamente');
 }
+
+// Acción para exportar el informe HTML
+add_action('admin_post_wpvulscan_export_html', function() {
+    require_once plugin_dir_path(__FILE__) . 'report-generator.php';
+
+    // Simulación de resultados (luego se integrarán los reales)
+    $results = [
+        'Configuración insegura' => get_option('wpvulscan_config_issues', []),
+        'Formularios inseguros' => get_option('wpvulscan_form_issues', []),
+        'Hardening' => get_option('wpvulscan_hardening_issues', []),
+        'Usuarios predecibles / permisos inseguros' => get_option('wpvulscan_system_issues', []),
+    ];
+
+    $html = wpvulscan_generate_html_report($results);
+
+    header("Content-Type: application/octet-stream");
+    header("Content-Disposition: attachment; filename=wp-vulscan-report.html");
+    echo $html;
+    exit;
+});

@@ -105,3 +105,6 @@ function wp_vulscan_check_plugins_abandonados() {
 
     echo '</tbody></table>';
 }
+
+
+update_option('wpvulscan_system_issues', $system_warnings);

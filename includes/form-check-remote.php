@@ -99,3 +99,5 @@ function wp_vulscan_analizar_formularios_remotos() {
         echo '</ul>';
     }
 }
+
+update_option('wpvulscan_form_issues', $form_issues);   

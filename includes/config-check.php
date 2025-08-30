@@ -75,3 +75,5 @@ function wp_vulscan_mostrar_analisis_configuracion() {
 
     echo '</tbody></table>';
 }
+
+update_option('wpvulscan_config_issues', $issues); 
