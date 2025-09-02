@@ -117,6 +117,21 @@ function wp_vulscan_admin_page() {
         ?>
 
         <hr>
+        <hr>
+        <h2>Escaneo de rutas externas sensibles</h2>
+        <?php
+        $external_issues = get_option('wpvulscan_external_url_issues', []);
+        if (empty($external_issues)) {
+            echo "<p class='ok'>No se han detectado rutas externas expuestas.</p>";
+        } else {
+            echo "<ul>";
+            foreach ($external_issues as $issue) {
+                echo "<li>{$issue}</li>";
+            }
+            echo "</ul>";
+        }
+        ?>
+
 
         <h2>Herramientas de análisis</h2>
         <ul>
@@ -140,4 +155,5 @@ function wp_vulscan_admin_page() {
     wp_vulscan_check_permisos_archivos();
     wp_vulscan_check_plugins_abandonados();
     wp_vulscan_mostrar_recomendaciones_hardening();
+    wpvulscan_scan_sensitive_urls();
 }
