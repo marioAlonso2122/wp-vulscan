@@ -4,6 +4,8 @@ defined('ABSPATH') or die('Acceso no permitido.');
 require_once plugin_dir_path(__FILE__) . 'security-score.php';
 require_once plugin_dir_path(__FILE__) . 'scan-history.php';
 require_once plugin_dir_path(__FILE__) . 'plugin-check.php'; 
+require_once plugin_dir_path(__FILE__) . 'external-url-scan.php';
+
 
 // Hook para registrar el menú en el panel de administración
 add_action('admin_menu', 'wp_vulscan_register_menu');
@@ -49,7 +51,9 @@ function wp_vulscan_admin_page() {
             'Formularios inseguros' => get_option('wpvulscan_form_issues', []),
             'Hardening' => get_option('wpvulscan_hardening_issues', []),
             'Usuarios predecibles / permisos inseguros' => get_option('wpvulscan_system_issues', []),
+            'Rutas externas sensibles' => get_option('wpvulscan_external_url_issues', []), // <-- nuevo
         ];
+
         $score_data = wpvulscan_calculate_score($results);
         ?>
         
@@ -156,4 +160,6 @@ function wp_vulscan_admin_page() {
     wp_vulscan_check_plugins_abandonados();
     wp_vulscan_mostrar_recomendaciones_hardening();
     wpvulscan_scan_sensitive_urls();
+
+
 }

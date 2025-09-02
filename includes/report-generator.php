@@ -51,6 +51,19 @@ function wpvulscan_generate_html_report($results = [], $score_data = []) {
         }
         $html .= "</div>";
     }
+    $html .= "<div class='section'><h2>Rutas externas sensibles</h2>";
+        $external_issues = get_option('wpvulscan_external_url_issues', []);
+        if (!empty($external_issues)) {
+            $html .= "<ul>";
+            foreach ($external_issues as $issue) {
+                $html .= "<li>" . esc_html($issue) . "</li>";
+            }
+            $html .= "</ul>";
+        } else {
+            $html .= "<p class='ok'>No se han detectado rutas sensibles accesibles públicamente.</p>";
+        }
+    $html .= "</div>";
+
 
     $html .= "</body></html>";
     return $html;
