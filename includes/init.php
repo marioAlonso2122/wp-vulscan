@@ -5,6 +5,7 @@ defined('ABSPATH') or die('Acceso no permitido.');
 // Ruta base del plugin
 define('WP_VULSCAN_PATH', plugin_dir_path(__DIR__));
 define('WP_VULSCAN_URL', plugin_dir_url(__DIR__));
+define('WPVULSCAN_WPSCAN_API_KEY', 'TU_API_KEY_AQUI');
 
 // Cargar archivos principales del plugin
 require_once plugin_dir_path(__FILE__) . 'admin-menu.php';
@@ -12,6 +13,8 @@ require_once plugin_dir_path(__FILE__) . 'config-check.php';
 require_once plugin_dir_path(__FILE__) . 'form-check-remote.php';
 require_once plugin_dir_path(__FILE__) . 'system-check.php';
 require_once plugin_dir_path(__FILE__) . 'hardening-recommendations.php';
+require_once plugin_dir_path(__FILE__) . 'security-score.php';
+
 
 // Hook de activación del plugin
 register_activation_hook(WP_VULSCAN_PATH . 'wp-vulscan.php', 'wp_vulscan_activate');
