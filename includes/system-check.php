@@ -13,9 +13,9 @@ function wp_vulscan_check_wp_version() {
     // Última versión conocida (puede mantenerse manualmente)
     $ultima = '6.5.4'; // Cambiar si hay versión más reciente
     if (version_compare($wp_version, $ultima, '<')) {
-        echo '<p style="color:red;">⚠️ Tu instalación está desactualizada respecto a la versión ' . $ultima . '</p>';
+        echo '<p style="color:red;">Tu instalación está desactualizada respecto a la versión ' . $ultima . '</p>';
     } else {
-        echo '<p style="color:green;">✅ WordPress está actualizado.</p>';
+        echo '<p style="color:green;">WordPress está actualizado.</p>';
     }
 }
 
@@ -32,11 +32,11 @@ function wp_vulscan_check_usuarios_predecibles() {
     echo '<h2>Usuarios con nombres predecibles</h2>';
 
     if (empty($coincidencias)) {
-        echo '<p style="color:green;">✅ No se han detectado usuarios con nombres peligrosos.</p>';
+        echo '<p style="color:green;">No se han detectado usuarios con nombres peligrosos.</p>';
     } else {
         echo '<ul>';
         foreach ($coincidencias as $nombre) {
-            echo '<li style="color:red;">⚠️ Usuario "' . esc_html($nombre) . '" detectado.</li>';
+            echo '<li style="color:red;">Usuario "' . esc_html($nombre) . '" detectado.</li>';
         }
         echo '</ul>';
     }
@@ -65,7 +65,7 @@ function wp_vulscan_check_permisos_archivos() {
             echo '<tr>';
             echo '<td>' . esc_html($a) . '</td>';
             echo '<td>' . esc_html($permisos) . '</td>';
-            echo '<td>' . ($ok ? '✅ Seguro' : '<span style="color:red;">⚠️ Inseguro</span>') . '</td>';
+            echo '<td>' . ($ok ? 'Seguro' : '<span style="color:red;">Inseguro</span>') . '</td>';
             echo '</tr>';
         }
     }
@@ -97,8 +97,8 @@ function wp_vulscan_check_plugins_abandonados() {
             echo '<td>' . esc_html($datos['Version']) . '</td>';
             echo '<td>' . date('Y-m-d', $mtime) . '</td>';
             echo '<td>' . ($mtime < $limite
-                ? '<span style="color:red;">⚠️ Inactivo/antiguo</span>'
-                : '✅ Reciente') . '</td>';
+                ? '<span style="color:red;">Inactivo/antiguo</span>'
+                : 'Reciente') . '</td>';
             echo '</tr>';
         }
     }
