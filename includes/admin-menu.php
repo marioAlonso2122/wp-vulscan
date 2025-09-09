@@ -5,6 +5,11 @@ require_once plugin_dir_path(__FILE__) . 'security-score.php';
 require_once plugin_dir_path(__FILE__) . 'scan-history.php';
 require_once plugin_dir_path(__FILE__) . 'plugin-check.php';
 require_once plugin_dir_path(__FILE__) . 'external-url-scan.php';
+require_once plugin_dir_path(__FILE__) . 'form-check-remote.php';         // análisis de formularios/URLs
+require_once plugin_dir_path(__FILE__) . 'hardening-recommendations.php'; // recomendaciones de cabeceras, etc.
+require_once plugin_dir_path(__FILE__) . 'system-check.php';              // versión WP, usuarios, perms, plugins, REST API
+require_once plugin_dir_path(__FILE__) . 'export.php';                    // handler admin_post wpvulscan_export_html
+require_once plugin_dir_path(__FILE__) . 'rules-loader.php';              // catálogo de reglas (JSON)
 
 /**
  * Registrar el menú principal del plugin
@@ -23,6 +28,61 @@ function wp_vulscan_register_menu() {
 }
 
 /**
+ * Widget: resumen del catálogo de reglas
+ * (solo lectura; recurre a la caché y, si está vacía, fuerza una recarga)
+ */
+function wpvulscan_render_rules_summary() {
+    echo '<h2>Catálogo de reglas</h2>';
+
+    if (!function_exists('wpvulscan_rules_get')) {
+        echo '<p>No se pudo cargar el catálogo de reglas.</p>';
+        return;
+    }
+
+    // Si la caché está vacía, intenta recargar desde /rules
+    $cached = get_option('wpvulscan_rules_cache', []);
+    if (empty($cached) && function_exists('wpvulscan_rules_load_all')) {
+        wpvulscan_rules_load_all();
+        $cached = get_option('wpvulscan_rules_cache', []);
+    }
+
+    $rules = wpvulscan_rules_get(false); // incluir desactivadas
+    $count = is_array($rules) ? count($rules) : 0;
+
+    echo '<p class="description">Reglas cargadas: <strong>' . intval($count) . '</strong></p>';
+
+    if (empty($rules)) {
+        echo '<p>No hay reglas cargadas. Asegúrate de que la carpeta <code>/rules</code> contiene JSON válidos y que se cargan en <code>admin_init</code>.</p>';
+        return;
+    }
+
+    echo '<table class="widefat fixed striped">';
+    echo '<thead><tr>'
+        . '<th>ID</th>'
+        . '<th>Nombre</th>'
+        . '<th>Severidad</th>'
+        . '<th>OWASP/Categoría</th>'
+        . '<th>CWE</th>'
+        . '<th>Activo</th>'
+        . '</tr></thead><tbody>';
+
+    foreach ($rules as $r) {
+        $sev = isset($r['severity_default']) ? ucfirst($r['severity_default']) : '—';
+        $enabled = !empty($r['enabled']) ? '<span style="color:green;">Sí</span>' : '<span style="color:#d9822b;">No</span>';
+        echo '<tr>';
+        echo '<td><code>' . esc_html($r['id']) . '</code></td>';
+        echo '<td>' . esc_html($r['name'] ?? '') . '</td>';
+        echo '<td>' . esc_html($sev) . '</td>';
+        echo '<td>' . esc_html($r['category'] ?? '') . '</td>';
+        echo '<td>' . esc_html($r['cwe'] ?? '') . '</td>';
+        echo '<td>' . $enabled . '</td>';
+        echo '</tr>';
+    }
+
+    echo '</tbody></table>';
+}
+
+/**
  * Página principal del plugin
  */
 function wp_vulscan_admin_page() {
@@ -38,7 +98,7 @@ function wp_vulscan_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>API Key guardada correctamente.</p></div>';
     }
 
-    // Obtener la clave almacenada (defínela ANTES de pintar el input)
+    // Obtener la clave almacenada
     $current_key = get_option('wpvulscan_wpscan_api_key', '');
 
     // Cargar resultados para score
@@ -162,37 +222,52 @@ function wp_vulscan_admin_page() {
     </div>
     <?php
 
-    // ======= Sección de módulos/análisis en la misma página (renderizados) =======
+    // ======= RENDER DE MÓDULOS / ANÁLISIS EN LA MISMA PÁGINA =======
+
+    // ANALÍTICA DE CONFIGURACIÓN/FORMULARIOS/EXTERNAS
     if ( function_exists('wp_vulscan_mostrar_analisis_configuracion') ) {
         wp_vulscan_mostrar_analisis_configuracion();
     }
-
     if ( function_exists('wp_vulscan_formulario_urls_usuario') ) {
         wp_vulscan_formulario_urls_usuario();
-        // NO LLAMAMOS aquí a wp_vulscan_analizar_formularios_remotos() para no duplicar ejecución
+    }
+
+    // --- Chequeos de "Sistema" (system-check.php) ---
+    // Limpia incidencias previas y ejecuta los chequeos con salida HTML:
+    if ( function_exists('update_option') ) {
+        update_option('wpvulscan_system_issues', [], false);
     }
 
     if ( function_exists('wp_vulscan_check_wp_version') ) {
         wp_vulscan_check_wp_version();
     }
-
     if ( function_exists('wp_vulscan_check_usuarios_predecibles') ) {
         wp_vulscan_check_usuarios_predecibles();
     }
-
     if ( function_exists('wp_vulscan_check_permisos_archivos') ) {
         wp_vulscan_check_permisos_archivos();
     }
-
     if ( function_exists('wp_vulscan_check_plugins_abandonados') ) {
         wp_vulscan_check_plugins_abandonados();
     }
+    // *** NUEVO: verificación REST API (permission_callback) ***
+    if ( function_exists('wp_vulscan_check_rest_api_permissions') ) {
+        wp_vulscan_check_rest_api_permissions();
+    }
 
+    // HARDENING
     if ( function_exists('wp_vulscan_mostrar_recomendaciones_hardening') ) {
         wp_vulscan_mostrar_recomendaciones_hardening();
     }
 
+    // URLs externas sensibles (ya mostrado arriba, pero si quieres “forzar” análisis aquí):
     if ( function_exists('wpvulscan_scan_sensitive_urls') ) {
         wpvulscan_scan_sensitive_urls();
+    }
+
+    // ======= WIDGET: Catálogo de reglas =======
+    echo '<hr>';
+    if ( function_exists('wpvulscan_render_rules_summary') ) {
+        wpvulscan_render_rules_summary();
     }
 }

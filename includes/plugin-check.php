@@ -41,7 +41,7 @@ function wpvulscan_check_plugins_vulnerables() {
         if (!empty($body['vulnerabilities'])) {
             foreach ($body['vulnerabilities'] as $vuln) {
                 if (version_compare($plugin_version, $vuln['fixed_in'], '<')) {
-                    $resultados[] = "🔴 Plugin <strong>$plugin_slug</strong> v$plugin_version tiene vulnerabilidad: " .
+                    $resultados[] = "Plugin <strong>$plugin_slug</strong> v$plugin_version tiene vulnerabilidad: " .
                         esc_html($vuln['title']) . " (CVE: " . esc_html(implode(', ', $vuln['cve'] ?? [])) . ").";
                 }
             }

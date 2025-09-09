@@ -1,0 +1,14 @@
+{
+  "id": "rule_open_redirect",
+  "name": "Redirección abierta por parámetro",
+  "category": "OWASP-A01:2021 Broken Access Control",
+  "cwe": "CWE-601",
+  "severity_default": "medium",
+  "pattern_json": {
+    "type": "redirect_param",
+    "param_names": ["redirect", "redirect_to", "next", "url", "return", "continue", "dest", "destination"],
+    "required_validators_any": ["wp_safe_redirect", "esc_url_raw", "home_url", "site_url"],
+    "forbidden_functions": ["wp_redirect"]
+  },
+  "enabled": true
+}

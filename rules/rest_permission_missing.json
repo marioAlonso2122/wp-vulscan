@@ -1,0 +1,13 @@
+{
+  "id": "rule_rest_permission_missing",
+  "name": "REST endpoint sin control de acceso",
+  "category": "OWASP-A01:2021 Broken Access Control",
+  "cwe": "CWE-284",
+  "severity_default": "high",
+  "pattern_json": {
+    "type": "rest_route",
+    "forbidden_callbacks": ["__return_true"],
+    "required": ["permission_callback"]
+  },
+  "enabled": true
+}

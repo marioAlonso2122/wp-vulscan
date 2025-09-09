@@ -1,0 +1,12 @@
+{
+  "id": "rule_insecure_headers",
+  "name": "Cabeceras de seguridad ausentes",
+  "category": "OWASP-ASVS V14 – Configuration",
+  "cwe": "CWE-693",
+  "severity_default": "medium",
+  "pattern_json": {
+    "type": "headers",
+    "missing_any_of": ["Strict-Transport-Security", "X-Frame-Options", "Content-Security-Policy"]
+  },
+  "enabled": true
+}

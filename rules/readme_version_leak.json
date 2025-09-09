@@ -1,0 +1,14 @@
+{
+  "id": "rule_readme_version_leak",
+  "name": "Divulgación de versión vía readme.html",
+  "category": "OWASP-ASVS V14: Configuration",
+  "cwe": "CWE-200",
+  "severity_default": "medium",
+  "pattern_json": {
+    "type": "http_resource",
+    "path": "readme.html",
+    "expected_status": [200],
+    "body_match_any": ["Version \\d+\\.\\d+(?:\\.\\d+)?"]
+  },
+  "enabled": true
+}

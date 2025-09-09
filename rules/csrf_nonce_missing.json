@@ -1,0 +1,12 @@
+{
+  "id": "rule_csrf_nonce_missing",
+  "name": "Formulario sin protección CSRF (nonce)",
+  "category": "OWASP-A01:2021 Broken Access Control",
+  "cwe": "CWE-352",
+  "severity_default": "medium",
+  "pattern_json": {
+    "type": "form",
+    "required_tokens_any": ["_wpnonce", "nonce", "csrf", "_token", "authenticity_token"]
+  },
+  "enabled": true
+}

@@ -1,0 +1,14 @@
+{
+  "id": "rule_file_upload_unsafe",
+  "name": "Subida de ficheros insegura",
+  "category": "OWASP-A08:2021 Software and Data Integrity Failures",
+  "cwe": "CWE-434",
+  "severity_default": "high",
+  "pattern_json": {
+    "type": "php_source",
+    "sinks_any": ["move_uploaded_file", "file_put_contents"],
+    "recommended_guards_any": ["wp_handle_upload", "wp_check_filetype", "wp_check_filetype_and_ext", "mime_content_type"],
+    "must_validate": ["mime", "extension", "size"]
+  },
+  "enabled": true
+}

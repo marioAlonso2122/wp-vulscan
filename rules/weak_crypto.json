@@ -1,0 +1,13 @@
+{
+  "id": "rule_weak_crypto",
+  "name": "Criptografía débil para seguridad",
+  "category": "OWASP-A02:2021 Cryptographic Failures",
+  "cwe": "CWE-327",
+  "severity_default": "medium",
+  "pattern_json": {
+    "type": "php_source",
+    "forbidden_functions": ["md5", "sha1"],
+    "context_hint": ["password", "token", "signature", "nonce", "reset", "auth"]
+  },
+  "enabled": true
+}
