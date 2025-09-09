@@ -193,6 +193,6 @@ function wpvulscan_calculate_score($results) {
     return [
         'score'  => $normalized,
         'riesgo' => $risk,
-        'detalle'=> $break, // por si quieres usarlo en un tooltip o en el informe
+        'detalle'=> $break, 
     ];
 }
