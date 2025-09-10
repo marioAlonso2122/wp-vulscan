@@ -5,7 +5,7 @@ defined('ABSPATH') or die('Acceso no permitido.');
  * Acumulador global de incidencias del sistema.
  */
 function wpvulscan_add_issue($type, $message, $meta = []) {
-    $issues = get_option('wpvulscan_system_issues', []);
+    $issues   = get_option('wpvulscan_system_issues', []);
     $issues[] = [
         'type'    => $type,
         'message' => $message,
@@ -13,6 +13,65 @@ function wpvulscan_add_issue($type, $message, $meta = []) {
         'time'    => current_time('mysql'),
     ];
     update_option('wpvulscan_system_issues', $issues, false);
+}
+
+/** =========================================================
+ * Helpers seguros para representar callbacks y métodos HTTP
+ * ========================================================= */
+
+/**
+ * Convierte cualquier callback a una cadena imprimible sin provocar errores.
+ */
+if ( ! function_exists('wpvulscan_callback_to_string') ) {
+    function wpvulscan_callback_to_string($cb) {
+        if (is_string($cb)) {
+            return $cb; // '__return_true', 'mi_funcion'
+        }
+        if (is_array($cb)) {
+            // Formatos típicos: [$obj, 'metodo'] o ['Clase', 'metodo']
+            $obj = $cb[0] ?? null;
+            $met = $cb[1] ?? '';
+            if (is_object($obj)) return get_class($obj) . '::' . (string) $met;
+            if (is_string($obj)) return $obj . '::' . (string) $met;
+            return 'callable[]';
+        }
+        if ($cb instanceof Closure) {
+            return 'Closure';
+        }
+        if (is_object($cb)) {
+            return get_class($cb);
+        }
+        return gettype($cb); // NULL, boolean, integer...
+    }
+}
+
+/**
+ * Normaliza el campo 'methods' de un endpoint REST a texto.
+ */
+if ( ! function_exists('wpvulscan_methods_to_string') ) {
+    function wpvulscan_methods_to_string($methods) {
+        if (is_string($methods)) {
+            return $methods; // 'GET', 'POST'
+        }
+        if (is_array($methods)) {
+            $out = [];
+            foreach ($methods as $k => $v) {
+                // Puede venir como ['GET' => true, 'POST' => true] o ['GET','POST']
+                if (is_string($k)) {
+                    $out[] = $k;
+                } elseif (is_string($v) || is_int($v)) {
+                    $out[] = (string) $v;
+                }
+            }
+            $out = array_unique($out);
+            return implode(', ', $out);
+        }
+        if (is_int($methods)) {
+            // En algunas versiones es un bitmask; lo mostramos como entero
+            return (string) $methods;
+        }
+        return '';
+    }
 }
 
 /**
@@ -38,8 +97,8 @@ function wp_vulscan_check_wp_version() {
  * 2. Detectar usuarios comunes
  */
 function wp_vulscan_check_usuarios_predecibles() {
-    $usuarios_obj = get_users(['fields' => ['user_login']]);
-    $usuarios = wp_list_pluck($usuarios_obj, 'user_login');
+    $usuarios_obj   = get_users(['fields' => ['user_login']]);
+    $usuarios       = wp_list_pluck($usuarios_obj, 'user_login');
     $nombres_riesgo = ['admin', 'administrator', 'root', 'editor'];
 
     $coincidencias = array_intersect($nombres_riesgo, array_map('strtolower', $usuarios));
@@ -111,7 +170,7 @@ function wp_vulscan_check_plugins_abandonados() {
     foreach ($todos as $ruta => $datos) {
         $plugin_path = WP_PLUGIN_DIR . '/' . dirname($ruta);
         if (file_exists($plugin_path)) {
-            $mtime = @filemtime($plugin_path);
+            $mtime      = @filemtime($plugin_path);
             $es_antiguo = ($mtime !== false && $mtime < $limite);
 
             echo '<tr>';
@@ -134,10 +193,9 @@ function wp_vulscan_check_plugins_abandonados() {
 
 /**
  * 5. REST API: rutas sin permission_callback o con __return_true
- *    - Recorre todas las rutas registradas y marca las inseguras.
  */
 function wp_vulscan_check_rest_api_permissions() {
-    echo '<h2>REST API: Validación de permission_callback</h2>';
+    echo '<h2>REST API: Validación de <code>permission_callback</code></h2>';
 
     if (!function_exists('rest_get_server')) {
         echo '<p>No se pudo acceder al servidor REST.</p>';
@@ -151,88 +209,72 @@ function wp_vulscan_check_rest_api_permissions() {
     }
 
     $routes = $server->get_routes();
+    if (empty($routes) || !is_array($routes)) {
+        echo '<p>No se encontraron rutas REST.</p>';
+        return;
+    }
 
     echo '<table class="widefat fixed striped">';
     echo '<thead><tr><th>Ruta</th><th>Métodos</th><th>permission_callback</th><th>Estado</th></tr></thead><tbody>';
 
-    foreach ($routes as $route => $handlers) {
-        // $handlers suele ser un array de endpoints; cada endpoint tiene keys como methods/callback/permission_callback/args
-        $endpoints = is_array($handlers) ? $handlers : [];
+    $issues = get_option('wpvulscan_system_issues', []);
+    if (!is_array($issues)) $issues = [];
+
+    foreach ($routes as $route => $endpoints) {
+        if (!is_array($endpoints)) continue;
 
         foreach ($endpoints as $endpoint) {
-            if (!is_array($endpoint)) {
-                continue;
-            }
+            if (!is_array($endpoint)) continue;
 
-            // Normalizar métodos
-            $methods = 'GET';
-            if (!empty($endpoint['methods'])) {
-                if (is_array($endpoint['methods'])) {
-                    // En algunas versiones es array asociativo de constantes
-                    $methods = implode(',', array_keys($endpoint['methods']));
-                } else {
-                    $methods = (string) $endpoint['methods'];
-                }
-            }
+            // Métodos normalizados
+            $methods = isset($endpoint['methods'])
+                ? wpvulscan_methods_to_string($endpoint['methods'])
+                : '';
 
-            $perm = $endpoint['permission_callback'] ?? null;
+            // permission_callback a texto seguro
+            $perm_cb  = $endpoint['permission_callback'] ?? null;
+            $perm_str = is_null($perm_cb) ? '(faltante)' : wpvulscan_callback_to_string($perm_cb);
 
-            $insecure  = false;
-            $perm_desc = '—';
+            // Inseguro si falta o es __return_true
+            $insecure = (is_null($perm_cb) || (is_string($perm_cb) && strtolower($perm_cb) === '__return_true'));
 
-            if ($perm === null) {
-                $insecure  = true;
-                $perm_desc = '<span style="color:red;">(faltante)</span>';
-                wpvulscan_add_issue('rest', "Ruta REST sin permission_callback: $route", [
-                    'methods' => $methods
-                ]);
-            } elseif (is_string($perm) && strtolower($perm) === '__return_true') {
-                $insecure  = true;
-                $perm_desc = '<span style="color:red;">__return_true</span>';
-                wpvulscan_add_issue('rest', "Ruta REST con acceso universal (__return_true): $route", [
-                    'methods' => $methods
-                ]);
-            } else {
-                // Mostramos algo legible
-                if (is_string($perm)) {
-                    $perm_desc = esc_html($perm);
-                } elseif (is_array($perm)) {
-                    // ['Clase','método'] // o ['obj','método']
-                    $perm_desc = esc_html(implode('::', array_map('strval', $perm)));
-                } elseif ($perm instanceof Closure) {
-                    $perm_desc = 'closure';
-                } elseif (is_callable($perm)) {
-                    $perm_desc = 'callable';
-                } else {
-                    $perm_desc = 'definido';
-                }
-                if ($insecure && function_exists('wpvulscan_insert_finding_with_rule')) {
+            echo '<tr>';
+            echo '<td>' . esc_html($route)   . '</td>';
+            echo '<td>' . esc_html($methods) . '</td>';
+            echo '<td>' . esc_html($perm_str). '</td>';
+            echo '<td>' . ($insecure ? '<strong style="color:red;">Riesgo</strong>' : '<span style="color:green;">OK</span>') . '</td>';
+            echo '</tr>';
+
+            if ($insecure) {
+                $issues[] = [
+                    'type'    => 'rest',
+                    'message' => "Ruta REST insegura: $route",
+                    'meta'    => ['methods' => $methods, 'perm' => $perm_str],
+                    'time'    => current_time('mysql'),
+                ];
+                // Opcional: registrar también como "finding" si tienes el motor de reglas
+                if (function_exists('wpvulscan_insert_finding_with_rule')) {
                     wpvulscan_insert_finding_with_rule('rule_rest_permission_missing', [
-                        'path'      => $route,
-                        'function_name' => 'REST ' . $methods,
-                        'sample_payload' => is_string($perm) ? $perm : (is_array($perm) ? implode('::', $perm) : '—')
+                        'path'           => $route,
+                        'function_name'  => 'REST ' . $methods,
+                        'sample_payload' => $perm_str,
                     ]);
                 }
             }
-
-            echo '<tr>';
-            echo '<td>' . esc_html($route) . '</td>';
-            echo '<td>' . esc_html($methods) . '</td>';
-            echo '<td>' . $perm_desc . '</td>';
-            echo '<td>' . ($insecure ? '<strong style="color:red;">Riesgo</strong>' : '<span style="color:green;">OK</span>') . '</td>';
-            echo '</tr>';
         }
     }
 
     echo '</tbody></table>';
+
+    update_option('wpvulscan_system_issues', $issues, false);
 }
 
 /**
- * Runner: ejecuta todos los chequeos y deja incidencias en wp_vulscan_system_issues
+ * Runner: ejecuta todos los chequeos y deja incidencias en wpvulscan_system_issues
  */
 function wp_vulscan_run_system_checks() {
     // Limpia incidencias previas opcionalmente
-    update_option('wp_vulscan_system_issues', [], false);
+    update_option('wpvulscan_system_issues', [], false);
 
     wp_vulscan_check_wp_version();
     wp_vulscan_check_usuarios_predecibles();

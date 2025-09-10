@@ -174,23 +174,12 @@ function wp_vulscan_admin_page() {
         </table>
 
         <hr>
-
-        <h2>Vulnerabilidades en plugins instalados</h2>
         <?php
-        if ( function_exists('wpvulscan_check_plugins_vulnerables') ) {
-            $vulns = wpvulscan_check_plugins_vulnerables();
-            if (empty($vulns)) {
-                echo "<p class='ok'>Todos los plugins instalados están libres de vulnerabilidades conocidas (según el catálogo disponible).</p>";
-            } else {
-                echo '<ul>';
-                foreach ($vulns as $item) {
-                    echo '<li>' . esc_html($item) . '</li>';
-                }
-                echo '</ul>';
-            }
-        } else {
-            echo '<p>No está disponible la comprobación de plugins vulnerables.</p>';
+
+        if ( function_exists('wpvulscan_render_plugins_vulns_section') ) {
+            wpvulscan_render_plugins_vulns_section();
         }
+
         ?>
 
         <hr>
@@ -259,6 +248,12 @@ function wp_vulscan_admin_page() {
     if ( function_exists('wp_vulscan_mostrar_recomendaciones_hardening') ) {
         wp_vulscan_mostrar_recomendaciones_hardening();
     }
+
+    echo '<hr>';
+    if ( function_exists('wpvulscan_render_hardening_controls') ) {
+        wpvulscan_render_hardening_controls();
+    }
+
 
     // URLs externas sensibles (ya mostrado arriba, pero si quieres “forzar” análisis aquí):
     if ( function_exists('wpvulscan_scan_sensitive_urls') ) {

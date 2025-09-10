@@ -232,3 +232,53 @@ function wp_vulscan_mostrar_recomendaciones_hardening() {
     echo '</tbody></table>';
     echo '<p><em>Nota:</em> Los hallazgos se han almacenado en <code>wpvulscan_hardening_issues</code> para su uso en el historial e informes.</p>';
 }
+
+
+// === Debug de cabeceras + Forzar chequeo ===
+if ( ! function_exists('wpvulscan_render_headers_debug_table') ) {
+function wpvulscan_render_headers_debug_table() {
+    echo '<h3>Cabeceras del front (debug)</h3>';
+    $front = trailingslashit(home_url('/'));
+    $resp  = wpvulscan_request_head_or_get($front, 8);
+    if (is_wp_error($resp)) {
+        echo '<p style="color:red;">Error al obtener cabeceras: ' . esc_html($resp->get_error_message()) . '</p>';
+        return;
+    }
+    $code    = (int) wp_remote_retrieve_response_code($resp);
+    $headers = wpvulscan_headers_array(wp_remote_retrieve_headers($resp));
+    echo '<p>URL: <code>' . esc_html($front) . '</code> — HTTP ' . esc_html((string)$code) . '</p>';
+    if (empty($headers)) {
+        echo '<p>(Sin cabeceras detectables)</p>';
+        return;
+    }
+    echo '<table class="widefat fixed striped"><thead><tr><th>Header</th><th>Valor</th></tr></thead><tbody>';
+    foreach ($headers as $k => $v) {
+        echo '<tr><td>' . esc_html($k) . '</td><td>' . esc_html($v) . '</td></tr>';
+    }
+    echo '</tbody></table>';
+}}
+
+// Botón "Forzar chequeo"
+add_action('admin_post_wpvulscan_hardening_check_now', function () {
+    if (!current_user_can('manage_options')) wp_die('Acceso denegado.');
+    check_admin_referer('wpvulscan_hardening_check_now', '_wpvulscan');
+    wpvulscan_collect_hardening_findings(); // recalcula
+    wp_safe_redirect(admin_url('admin.php?page=wp-vulscan#hardening'));
+    exit;
+});
+
+// Mini UI (puedes llamarlo desde admin-menu)
+if ( ! function_exists('wpvulscan_render_hardening_controls') ) {
+function wpvulscan_render_hardening_controls() {
+    echo '<h2 id="hardening">Revisión de cabeceras (hardening)</h2>';
+    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+    echo '<input type="hidden" name="action" value="wpvulscan_hardening_check_now">';
+    wp_nonce_field('wpvulscan_hardening_check_now', '_wpvulscan');
+    echo '<button type="submit" class="button button-secondary">Forzar chequeo</button>';
+    echo '</form>';
+    // Tabla de hallazgos normal:
+    wp_vulscan_mostrar_recomendaciones_hardening();
+    // Tabla de cabeceras "tal cual" (debug):
+    wpvulscan_render_headers_debug_table();
+}}
+
