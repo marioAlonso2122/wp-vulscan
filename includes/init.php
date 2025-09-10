@@ -40,10 +40,12 @@ require_once WP_VULSCAN_INC . 'external-url-scan.php';
 require_once WP_VULSCAN_INC . 'export.php';            
 require_once WP_VULSCAN_INC . 'rules-loader.php';
 require_once WP_VULSCAN_INC . 'findings.php';
+if (!function_exists('wpvulscan_rules_load_all')) {
+    function wpvulscan_rules_load_all() {
+        return function_exists('wpvulscan_get_rules') ? wpvulscan_get_rules(true) : [];
+    }
+}
 
-add_action('admin_init', function () {
-    wpvulscan_rules_load_all();
-});
 
 
 /**

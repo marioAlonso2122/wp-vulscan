@@ -1,71 +1,150 @@
 <?php
 defined('ABSPATH') or die('Acceso no permitido.');
 
-function wpvulscan_rules_dir() {
-    return trailingslashit(WP_VULSCAN_DIR) . 'rules/';
+/**
+ * Devuelve la ruta absoluta al directorio /rules
+ */
+if ( ! function_exists('wpvulscan_rules_dir') ) {
+    function wpvulscan_rules_dir() {
+        $dir = plugin_dir_path(__FILE__) . '../rules/';
+        return trailingslashit($dir);
+    }
 }
 
-function wpvulscan_rules_load_all() {
-    $dir = wpvulscan_rules_dir();
-    if (!is_dir($dir)) return [];
+/**
+ * Valida y normaliza una regla cargada desde JSON.
+ * @return array [bool $ok, mixed $dataOrError]
+ */
+if ( ! function_exists('wpvulscan_validate_rule') ) {
+    function wpvulscan_validate_rule(array $r, $fileName) {
+        $required = ['id', 'name', 'category', 'severity_default'];
 
-    $rules = [];
-    foreach (glob($dir . '*.json') as $file) {
-        $raw  = file_get_contents($file);
-        $json = json_decode($raw, true);
-        if (!is_array($json)) continue;
-
-        foreach (['id','name','severity_default','pattern_json'] as $req) {
-            if (!array_key_exists($req, $json)) continue 2;
-        }
-        $json['id']               = trim((string)$json['id']);
-        $json['name']             = trim((string)$json['name']);
-        $json['category']         = isset($json['category']) ? (string)$json['category'] : '';
-        $json['cwe']              = isset($json['cwe']) ? (string)$json['cwe'] : '';
-        $json['severity_default'] = strtolower((string)$json['severity_default']);
-        $json['pattern_json']     = is_array($json['pattern_json']) ? wp_json_encode($json['pattern_json']) : (string)$json['pattern_json'];
-        $json['enabled']          = (int) !!($json['enabled'] ?? true);
-
-        $rules[$json['id']] = $json;
-    }
-
-    global $wpdb;
-    $table = $wpdb->prefix . 'vulscan_rules';
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-    if ($exists === $table) {
-        foreach ($rules as $r) {
-            $exists_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE id = %s LIMIT 1", $r['id']));
-            $data = [
-                'id'               => $r['id'],
-                'name'             => $r['name'],
-                'category'         => $r['category'],
-                'severity_default' => $r['severity_default'],
-                'pattern_json'     => $r['pattern_json'],
-                'enabled'          => $r['enabled'],
-                'created_at'       => current_time('mysql'),
-            ];
-            if ($exists_id) {
-                $wpdb->update($table, $data, ['id' => $r['id']]);
-            } else {
-                $wpdb->insert($table, $data);
+        foreach ($required as $k) {
+            if ( ! isset($r[$k]) || $r[$k] === '' ) {
+                return [false, "Regla inválida en {$fileName}: falta el campo '{$k}'."];
             }
         }
-    }
 
-    update_option('wpvulscan_rules_cache', $rules, false);
-    return $rules;
+        // Normalización de campos opcionales
+        $norm = $r;
+        $norm['enabled']       = isset($r['enabled']) ? (bool) $r['enabled'] : true;
+        $norm['cwe']           = isset($r['cwe']) ? (string) $r['cwe'] : '';
+        $norm['pattern_json']  = array_key_exists('pattern_json', $r) ? $r['pattern_json'] : new stdClass();
+
+        // Asegurar tipos básicos como string
+        $norm['id']            = (string) $norm['id'];
+        $norm['name']          = (string) $norm['name'];
+        $norm['category']      = (string) $norm['category'];
+        $norm['severity_default'] = (string) $norm['severity_default'];
+
+        return [true, $norm];
+    }
 }
 
-function wpvulscan_rules_get($only_enabled = true) {
-    $rules = get_option('wpvulscan_rules_cache', []);
-    if (empty($rules)) $rules = wpvulscan_rules_load_all();
-    if ($only_enabled) {
-        $rules = array_filter($rules, fn($r) => !empty($r['enabled']));
+/**
+ * Lee /rules/*.json y devuelve un array asociativo [rule_id => regla_normalizada]
+ */
+if ( ! function_exists('wpvulscan_load_rules_from_files') ) {
+    function wpvulscan_load_rules_from_files() {
+        $dir = wpvulscan_rules_dir();
+        if ( ! is_dir($dir) ) {
+            return [];
+        }
+
+        $rules = [];
+        $files = glob($dir . '*.json');
+        if ( ! is_array($files) ) {
+            $files = [];
+        }
+
+        foreach ($files as $file) {
+            $raw = @file_get_contents($file);
+            if ($raw === false || $raw === '') {
+                continue;
+            }
+
+            $json = json_decode($raw, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // JSON inválido: lo ignoramos
+                continue;
+            }
+
+            // Permitimos tanto un objeto-regla como un array de reglas
+            $list = (is_array($json) && array_keys($json) === range(0, count($json)-1)) ? $json : [$json];
+
+            foreach ($list as $rule) {
+                if ( ! is_array($rule) ) {
+                    continue;
+                }
+                list($ok, $val) = wpvulscan_validate_rule($rule, basename($file));
+                if ($ok) {
+                    $rules[$val['id']] = $val;
+                }
+            }
+        }
+
+        return $rules;
     }
-    return $rules;
 }
 
-function wpvulscan_rule_by_id($rule_id) {
-    $all = wpvulscan_rules_get(false);
-    return $all[$rule_id] ?? null;
+/**
+ * Cachea el catálogo de reglas en una opción
+ */
+if ( ! function_exists('wpvulscan_cache_rules') ) {
+    function wpvulscan_cache_rules(array $rules) {
+        update_option('wpvulscan_rules_cache', $rules, false);
+        return $rules;
+    }
+}
+
+/**
+ * Devuelve el catálogo de reglas (caché si existe; si no, recarga desde /rules)
+ */
+if ( ! function_exists('wpvulscan_get_rules') ) {
+    function wpvulscan_get_rules($force_reload = false) {
+        $cached = get_option('wpvulscan_rules_cache', []);
+        if ( ! $force_reload && is_array($cached) && ! empty($cached) ) {
+            return $cached;
+        }
+        $rules = wpvulscan_load_rules_from_files();
+        return wpvulscan_cache_rules($rules);
+    }
+}
+
+/**
+ * (Opcional) Widget de resumen de reglas para el panel
+ */
+if ( ! function_exists('wpvulscan_render_rules_summary') ) {
+    function wpvulscan_render_rules_summary() {
+        $rules = wpvulscan_get_rules();
+
+        echo '<h2>Catálogo de reglas</h2>';
+        if ( empty($rules) ) {
+            echo '<p>No se encontraron reglas en <code>/rules</code>.</p>';
+            return;
+        }
+
+        echo '<table class="widefat fixed striped">';
+        echo '<thead><tr>';
+        echo '<th>ID</th><th>Nombre</th><th>OWASP</th><th>CWE</th><th>Severidad</th><th>Enabled</th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ($rules as $r) {
+            $owasp = isset($r['category']) ? $r['category'] : '';
+            $cwe   = isset($r['cwe']) ? $r['cwe'] : '';
+            $sev   = isset($r['severity_default']) ? $r['severity_default'] : '';
+            $en    = ! empty($r['enabled']) ? 'Sí' : 'No';
+
+            echo '<tr>';
+            echo '<td>' . esc_html($r['id']) . '</td>';
+            echo '<td>' . esc_html($r['name']) . '</td>';
+            echo '<td>' . esc_html($owasp) . '</td>';
+            echo '<td>' . esc_html($cwe) . '</td>';
+            echo '<td>' . esc_html($sev) . '</td>';
+            echo '<td>' . esc_html($en) . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+    }
 }
